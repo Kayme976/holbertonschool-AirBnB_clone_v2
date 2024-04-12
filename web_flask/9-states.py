@@ -1,32 +1,36 @@
 #!/usr/bin/python3
 """Starts a Flask web application 9.
 """
-from models import storage
-from models.city import City
+from flask import Flask, render_template
 from models.state import State
-from flask import render_template, Flask
-
-flk = Flask(__name__)
+from models import storage
 
 
-@flk.route("/states", defaults={'id': None}, strict_slashes=False)
-@flk.route("/states/<id>", strict_slashes=False)
-def states_id(id):
+app = Flask(__name__, template_folder='templates')
+
+
+@app.route('/states', strict_slashes=False)
+def states():
     states = storage.all(State).values()
-    for value in states:
-        if value.id == id:
-            states = value
-            return render_template('9-states.html', states=states, id=id)
-    if id is None:
-        return render_template("9-states.html", states=states, id=id)
-    else:
-        return render_template("9-states.html")
+    states = sorted(states, key=lambda state: state.name)
+    for state in states:
+        state.cities = sorted(state.cities, key=lambda city: city.name)
+    return render_template('9-states.html', states=states)
 
 
-@flk.teardown_appcontext
-def teardown(exc):
+@app.route('/states/<id>', strict_slashes=False)
+def state(id):
+    for state in storage.all(State).values():
+        if state.id == id:
+            state.cities = sorted(state.cities, key=lambda city: city.name)
+            return render_template('9-states.html', state=state)
+    return render_template('9-states.html')
+
+
+@app.teardown_appcontext
+def close_session(exception=None):
     storage.close()
 
 
 if __name__ == "__main__":
-    flk.run(host='0.0.0.0', port=5000)
+    app.run(host="0.0.0.0", port=5000, debug=False)
